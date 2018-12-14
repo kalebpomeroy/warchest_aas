@@ -5,7 +5,7 @@ import mongoengine
 from mongoengine.fields import (
     ListField
 )
-from warchest.models.units import UNITS
+from warchest.models import units
 from warchest.errors import APIError
 
 
@@ -18,24 +18,24 @@ class Cards(mongoengine.EmbeddedDocument):
     @classmethod
     def new(cls):
         return Cards(
-            draft=sample(UNITS.keys(), 8),
+            draft=sample(units.UNITS.keys(), 8),
             wolves=[],
             ravens=[]
         )
 
     # At the start of the game, this gets the tokens setup
-    def setup_chips(self):
-        self._instance['zones']['wolves']['bag'].add("Royal Token")
-        self._instance['zones']['ravens']['bag'].add("Royal Token")
+    def setup_coins(self):
+        self._instance['zones']['wolves']['bag'].add(units.ROYAL_TOKEN)
+        self._instance['zones']['ravens']['bag'].add(units.ROYAL_TOKEN)
         for unit in self.wolves:
             self._instance['zones']['wolves']['bag'].add(unit)
             self._instance['zones']['wolves']['bag'].add(unit)
-            for i in range(UNITS[unit]['count']-2):
+            for i in range(units.UNITS[unit]['count']-2):
                 self._instance['zones']['wolves']['recruit'].add(unit)
         for unit in self.ravens:
             self._instance['zones']['ravens']['bag'].add(unit)
             self._instance['zones']['ravens']['bag'].add(unit)
-            for i in range(UNITS[unit]['count']-2):
+            for i in range(units.UNITS[unit]['count']-2):
                 self._instance['zones']['ravens']['recruit'].add(unit)
 
     def to_dict(self):
@@ -67,15 +67,15 @@ class Cards(mongoengine.EmbeddedDocument):
         # All the pre-reqs check out, ready to play
         for pick in picks:
             self.draft.remove(pick)
-            self[self._instance.initiative].append(pick)
+            self[self._instance.active_player].append(pick)
 
-        self._instance.your_turn()
+        self._instance.your_turn(drafting=True)
 
         # If there's one left, give it to the next player
         if len(self.draft) == 1:
-            self[self._instance.initiative].append(self.draft[0])
+            self[self._instance.active_player].append(self.draft[0])
             self.draft = []
-            self._instance.cards.setup_chips()
-            self._instance.draw()
+            self._instance.cards.setup_coins()
+            self._instance.new_round()
 
         self._instance.save()

@@ -8,6 +8,12 @@ def get_client_id():
     return request.headers.get('X-Client-Id', None)
 
 
+@app.errorhandler(404)
+def page_not_found(e):
+    # note that we set the 404 status explicitly
+    return jsonify({"message": "Could not find uri {}".format(request.path)}), 404
+
+
 class api:
     def make_api(rule, method, **options):
         def decorate(f):
@@ -18,7 +24,7 @@ class api:
             def wrapper(*args, **kwargs):
 
                 if not get_client_id() and not skip_auth:
-                    return '401 Unauthorized\n', 401
+                    return jsonify({"message": '401 Unauthorized'}), 401
 
                 response = f(*args, **kwargs)
                 return jsonify(response)

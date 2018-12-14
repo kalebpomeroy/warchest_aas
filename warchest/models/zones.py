@@ -17,35 +17,39 @@ HIDDEN = "hidden"    # No one can see the contents
 class Zone(mongoengine.EmbeddedDocument):
 
     owner = StringField()
-    chips = ListField()
+    coins = ListField()
     visibility = StringField()
 
     @classmethod
     def new(cls, owner, visibility):
-        return cls(owner=owner, visibility=visibility, chips=[])
+        return cls(owner=owner, visibility=visibility, coins=[])
 
-    def move(self, new_zone, chip=None):
-        if len(self.chips) == 0:
+    def move_all(self, new_zone):
+        for coin in self.coins:
+            self.move(new_zone, coin)
+
+    def move(self, new_zone, coin=None):
+        if len(self.coins) == 0:
             return
 
-        if not chip:
-            chip = choice(self.chips)
+        if not coin:
+            coin = choice(self.coins)
 
-        new_zone.add(chip)
-        self.remove(chip)
+        new_zone.add(coin)
+        self.remove(coin)
 
-    def add(self, chip):
-        self.chips.append(chip)
+    def add(self, coin):
+        self.coins.append(coin)
 
-    def remove(self, chip):
-        self.chips.remove(chip)
+    def remove(self, coin):
+        self.coins.remove(coin)
 
     def to_dict(self):
         zone = {
-            'count': len(self.chips)
+            'count': len(self.coins)
         }
 
         if self.visibility == PUBLIC or (self.visibility == PRIVATE and get_client_id() == self.owner):
-            zone['chips'] = self.chips
+            zone['coins'] = self.coins
 
         return zone

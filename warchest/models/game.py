@@ -4,11 +4,13 @@ from random import choice
 import mongoengine
 from mongoengine.fields import (
     DictField,
+    BooleanField,
     StringField,
     EmbeddedDocumentField
 )
 from mongoengine.queryset.visitor import Q
 from warchest.models.mixins import TimeTaggedDocument
+from warchest.models.board import Board
 from warchest.models.cards import Cards
 from warchest.models.zones import Zone, PRIVATE, HIDDEN, PUBLIC
 from warchest.errors import APIError
@@ -28,12 +30,15 @@ class Game(TimeTaggedDocument, mongoengine.Document):
         'strict': False
     }
 
+    active_player = StringField()
     status = StringField(required=True)
     wolves = StringField()
     ravens = StringField()
+    initiative_taken_this_round = BooleanField(default=False)
     initiative = StringField()
     zones = DictField()
     cards = EmbeddedDocumentField(Cards, null=True, required=False)
+    board = EmbeddedDocumentField(Board, null=True, required=False)
 
     @classmethod
     def make_new(cls):
@@ -72,57 +77,74 @@ class Game(TimeTaggedDocument, mongoengine.Document):
         if existing_game:
             raise APIError("Can't join game while you're already in one ({})".format(existing_game.id), 409)
 
-        cards = Cards.new()
-
-        def create_player_zones(client_id):
-            return {
-                'bag': Zone.new(client_id, HIDDEN),
-                'hand': Zone.new(client_id, PRIVATE),
-                'facedown': Zone.new(client_id, PRIVATE),
-                'faceup': Zone.new(client_id, PUBLIC),
-                'recruit': Zone.new(client_id, PUBLIC)
-            }
         zones = {
             'wolves': create_player_zones(self.wolves),
             'ravens': create_player_zones(get_client_id()),
         }
+        coin_flip = choice(['ravens', 'wolves'])
         if self.modify(Q(status='new', ravens=None),
                        set__ravens=get_client_id(),
-                       set__initiative=choice(['ravens', 'wolves']),
-                       set__cards=cards,
+                       set__initiative=coin_flip,
+                       set__active_player=coin_flip,
+                       set__cards=Cards.new(),
+                       set__board=Board.new(),
                        set__zones=zones,
                        set__status=IN_PROGRESS):
 
             return True
         raise APIError("This game is already full. Sorry", 409)
 
-    def your_turn(self):
-        self.initiative = ('ravens' if self.initiative == 'wolves' else 'wolves')
+    def your_turn(self, drafting=False):
+        if not drafting and self.new_round():
+            return
+
+        self.active_player = ('ravens' if self.active_player == 'wolves' else 'wolves')
+
+    def set_zones(self, zones):
+        self.zones[self.active_player] = zones
+
+    def take_initiative(self):
+        self.initiative_taken_this_round = True
+        self.initiative = self.active_player
 
     def is_it_my_turn(self):
-        if ((self.initiative == 'wolves' and self.wolves != get_client_id()) or
-           (self.initiative == 'ravens' and self.ravens != get_client_id())):
+        if ((self.active_player == 'wolves' and self.wolves != get_client_id()) or
+           (self.active_player == 'ravens' and self.ravens != get_client_id())):
             raise APIError("It's not your turn", 420)
 
-    def draw(self):
-        if len(self.zones['wolves']['hand'].chips) > 0 or len(self.zones['ravens']['hand'].chips) > 0:
-            return  # Its not time to draw yet
+    def new_round(self):
+        if len(self.zones['wolves']['hand'].coins) > 0 or len(self.zones['ravens']['hand'].coins) > 0:
+            return False  # Its not time yet
 
-        # For each player, draw 3 chips
+        # For each player, draw 3 coins
         for i in range(3):
-            self.zones['wolves']['bag'].move(self.zones['wolves']['hand'])
-            self.zones['ravens']['bag'].move(self.zones['ravens']['hand'])
+            self.draw('wolves')
+            self.draw('ravens')
+
+        self.active_player = self.initiative
+        self.initiative_taken_this_round = False
+        return True
+
+    def draw(self, player):
+        if len(self.zones[player]['bag'].coins) == 0:
+            self.zones[player]['faceup'].move_all(self.zones[player]['bag'])
+            self.zones[player]['facedown'].move_all(self.zones[player]['bag'])
+
+        self.zones[player]['bag'].move(self.zones[player]['hand'])
 
     def to_dict(self):
         response = {
             "status": self.status,
             "id": str(self.id),
             "initiative": self.initiative,
+            "active_player": self.active_player,
             "wolves": self.wolves,  # TODO: UUID is secret
             "ravens": self.ravens   # TODO: UUID is secret
         }
         if self.cards:
             response['cards'] = self.cards.to_dict()
+        if self.board:
+            response['board'] = self.board.to_dict()
 
         if self.zones:
             response['zones'] = {
@@ -142,3 +164,13 @@ class Game(TimeTaggedDocument, mongoengine.Document):
                 }
             }
         return response
+
+
+def create_player_zones(client_id):
+    return {
+        'bag': Zone.new(client_id, HIDDEN),
+        'hand': Zone.new(client_id, PRIVATE),
+        'facedown': Zone.new(client_id, PRIVATE),
+        'faceup': Zone.new(client_id, PUBLIC),
+        'recruit': Zone.new(client_id, PUBLIC)
+    }

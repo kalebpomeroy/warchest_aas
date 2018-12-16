@@ -1,16 +1,25 @@
 from warchest.errors import APIError
 from warchest.models import units
+from warchest.utils import list_get
+from warchest.models.board import LETTER_LIST, POSITIONS_LIST, CONTROL_POINTS
 
 PASS = 'pass'
 INITIATIVE = 'initiative'
 RECRUIT = 'recruit'
 DEPLOY = 'deploy'
 BOLSTER = 'bolster'
+MOVE = 'move'
+CONTROL = 'control'
 
 
 def get_possible(game, coin):
     game.is_it_my_turn()
     zones = game.zones[game.active_player]
+
+    if coin == 'no-op' and len(zones['hand'].coins) == 0: 
+        return {
+            PASS: True
+        }
 
     if coin not in zones['hand']['coins']:
 
@@ -24,28 +33,41 @@ def get_possible(game, coin):
 
 def _get_activation_actions(game, coin):
     return {
-        'move': get_moves(game, coin),
+        MOVE: _get_moves(game, coin),
         'attack': False,
         'tactic': False,
-        'capture': False
+        CONTROL: _get_control(game, coin)
     }
+
+def _get_control(game, coin):
+    coins = game.board.get_coins_spaces(coin)
+    if len(coins) == 0:
+        return False
+
+    controls = []
+    for name, pos in coins.items():
+        if pos in CONTROL_POINTS:
+            controls.append(name)
+
+    return controls or False
+
 
 def _get_moves(game, coin):
     coins = game.board.get_coins_spaces(coin)
-    if len(coins == 0):
+    if len(coins) == 0:
         return False
 
     movement = {}
 
-    for c in coins:
-        y = LETTER_LIST[space[0]]  # Letter
-        x = int(space[1])  # Number
+    for name, pos in coins.items():
+        y = LETTER_LIST.index(pos[0])  # Letter
+        x = int(pos[1])  # Number
 
         # Each coin has up to 6 possible movement spaces
         possible_spaces = [
             (x - 1, y - 1),
             (x - 1, y + 1),
-            (X + 1, y - 1),
+            (x + 1, y - 1),
             (x + 1, y + 1),
             (x, y - 2),
             (x, y + 2)
@@ -61,9 +83,9 @@ def _get_moves(game, coin):
                 if valid_pos not in game.board.coins_on.keys():
                     options.append(valid_pos)
         if len(options) > 0:
-            movement[c] = options
+            movement[name] = options
 
-    if len(movement.keys() > 0):
+    if len(movement.keys()) > 0:
         return movement
 
     return False
@@ -80,10 +102,10 @@ def _get_deployment_actions(game, coin):
     # Is the unit on the board?
     spaces = game.board.get_coins_spaces(coin)
     if len(spaces) > 0:
-        bolster = spaces
+        bolster = list(spaces.values())
 
     if len(spaces) == 0 or (len(spaces) == 1 and coin == units.FOOTMAN):
-        deploy = [cp for cp in game.board[game.active_player] if cp not in game.board.coins_on.keys()]
+        deploy = [cp for cp in game.board[game.active_player] if cp not in list(game.board.coins_on.keys())]
         # UNIT: SCOUT
         if len(deploy) == 0:
             deploy = False
@@ -119,7 +141,8 @@ def execute(game, coin, action, data=None):
         raise APIError("Not a valid action", 400)
 
     if action == PASS:
-        zones['hand'].move(zones['facedown'], coin=coin)
+        if len(zones['hand'].coins) > 0:
+            zones['hand'].move(zones['facedown'], coin=coin)
 
     if action == INITIATIVE:
         if not possibles[INITIATIVE]:
@@ -150,6 +173,23 @@ def execute(game, coin, action, data=None):
             raise APIError("Can't bolster there", 400)
 
         game.board.bolster(coin, data)
+        zones['hand'].remove(coin=coin)
+
+    if action == MOVE:
+        piece = list(data.keys())[0]
+        to = data[piece]
+        if not possibles[MOVE] or piece not in possibles[MOVE] or to not in possibles[MOVE][piece]:
+            raise APIError("Can't move like that", 400)
+
+        game.board.move(piece, to)
+        zones['hand'].remove(coin=coin)
+
+    if action == CONTROL:
+
+        if not possibles[CONTROL] or data not in possibles[CONTROL]:
+            raise APIError("Don't be so controlling", 400)
+
+        game.board.control(data)
         zones['hand'].remove(coin=coin)
 
     game.set_zones(zones)

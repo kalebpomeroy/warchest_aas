@@ -30,6 +30,7 @@ class Game(TimeTaggedDocument, mongoengine.Document):
         'strict': False
     }
 
+    winner = StringField()
     active_player = StringField()
     status = StringField(required=True)
     wolves = StringField()
@@ -132,6 +133,10 @@ class Game(TimeTaggedDocument, mongoengine.Document):
 
         self.zones[player]['bag'].move(self.zones[player]['hand'])
 
+    def win(self):
+        self.status = COMPLETE
+        self.winner = get_client_id()
+
     def to_dict(self):
         response = {
             "status": self.status,
@@ -145,6 +150,8 @@ class Game(TimeTaggedDocument, mongoengine.Document):
             response['cards'] = self.cards.to_dict()
         if self.board:
             response['board'] = self.board.to_dict()
+        if self.status == COMPLETE:
+            response['winner'] = self.winner
 
         if self.zones:
             response['zones'] = {

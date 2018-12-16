@@ -36,15 +36,15 @@ POSITIONS_LIST = [
     [3, 5],
     [4]
 ]
+CONTROL_POINTS = [
+    'H1', 'H3', 'E2',  # Left Control Points
+    'F7', 'F5', 'I9',  # Right Control Points
+    'B3', 'C6',        # Ravens starting
+    'K2', 'L5'         # Wolves starting
+]
 
 class Board(mongoengine.EmbeddedDocument):
 
-    control_points = [
-        'H1', 'H3', 'E2',  # Left Control Points
-        'F7', 'F5', 'I9',  # Right Control Points
-        'B3', 'C6',        # Ravens starting
-        'K2', 'L5'         # Wolves starting
-    ]
     wolves = ListField()
     ravens = ListField()
     coins_on = DictField()
@@ -60,11 +60,37 @@ class Board(mongoengine.EmbeddedDocument):
             'wolves': self.wolves
         }
 
+    # TODO: Get surrounding spaces
+
+    def move(self, coin, to):
+        unit = self.coins_on[coin]
+        self.coins_on[to] = unit
+        self.coins_on.pop(coin, None)
+
     def deploy(self, coin, space):
+        if coin == units.FOOTMAN and coin in self.coins_on:
+            coin = units.FOOTMAN_B
+
         self.coins_on[coin] = {
             'space': space,
             'coins': 1
         }
+
+    def control(self, coin):
+        if self._instance.active_player == 'wolves':
+            friendly = self.wolves
+            enemy = self.ravens
+
+        if self._instance.active_player == 'ravens':
+            friendly = self.ravens
+            enemy = self.wolves
+
+        friendly.append(self.coins_on[coin]['space'])
+        if self.coins_on[coin] in enemy:
+            enemy.remove(self.coins_on[coin]['space'])
+
+        if len(friendly) >= 6:
+            self._instance.win()
 
     def bolster(self, coin, space):
         if coin == units.FOOTMAN:
@@ -73,12 +99,12 @@ class Board(mongoengine.EmbeddedDocument):
         self.coins_on[coin]['coins'] = self.coins_on[coin]['coins'] + 1
 
     def get_coins_spaces(self, name):
-        spaces = []
+        spaces = {}
         if name in self.coins_on:
-            spaces.append(self.coins_on[name]['space'])
+            spaces[name] = self.coins_on[name]['space']
 
         if name == units.FOOTMAN and units.FOOTMAN_B in self.coins_on:
-            spaces.append(self.coins_on[units.FOOTMAN_B]['space'])
+            spaces[units.FOOTMAN_B] = self.coins_on[units.FOOTMAN_B]['space']
 
         return spaces
 

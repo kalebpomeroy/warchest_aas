@@ -50,8 +50,16 @@ def test_happy_path():
     # A player can only see one of their coins
     assert ("coins" not in game['zones']['wolves']['hand']) | ("coins" not in game['zones']['ravens']['hand'])
 
-    for i in range(30):
+    for i in range(1000):
         game = take_a_turn(game, c)
+
+        if game['status'] == 'complete':
+            print("!"*80)
+            print("! WINNER on turn {}".format(i))
+            print("!"*80)
+            break
+
+    assert False
 
 
 def take_a_turn(game, c):
@@ -63,18 +71,22 @@ def take_a_turn(game, c):
     rv = client.get('/games/{}'.format(game['id']), headers={'X-Client-ID': c[game['active_player']]})
     game = json.loads(rv.data)
 
-    use_coin = choice(game['zones'][game['active_player']]['hand']['coins'])
-    url = '/games/{}/action/{}'.format(game['id'], use_coin)
-    rv = client.get(url, headers={'X-Client-ID': c[game['active_player']]})
-    options = json.loads(rv.data)
-    action, d = get_action(options)
-    data = {'action': action, 'data': d}
-    print("{} is using {} to {} ({})".format(game['active_player'], use_coin, action, data['data']))
+    if len(game['zones'][game['active_player']]['hand']['coins']) > 0:
+        use_coin = choice(game['zones'][game['active_player']]['hand']['coins'])
+        url = '/games/{}/action/{}'.format(game['id'], use_coin)
+        rv = client.get(url, headers={'X-Client-ID': c[game['active_player']]})
+        options = json.loads(rv.data)
+        action, d = get_action(options)
+        data = {'action': action, 'data': d}
+        print("{} is using {} to {} ({})".format(game['active_player'], use_coin, action, data['data']))
+    else:
+        data = {'action': 'pass', 'data': None}
+        url = '/games/{}/action/no-op'.format(game['id'])
+        print("{} is forced to pass".format(game['active_player']))
     rv = client.post(url,
                      data=json.dumps(data),
                      headers={'X-Client-ID': c[game['active_player']], 'Content-Type': 'application/json'})
     game = json.loads(rv.data)
-    # pprint(game)
     return game
 
 
@@ -85,5 +97,9 @@ def get_action(options):
 
     if isinstance(options[action], list):
         return (action, choice(options[action]))
+
+    if isinstance(options[action], dict):
+        key = choice(list(options[action].keys()))
+        return (action, {key: choice(options[action][key])})
 
     return (action, None)

@@ -20,7 +20,22 @@ from mongoengine.fields import (
     DictField,
     ListField
 )
-
+LETTER_LIST = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M']
+POSITIONS_LIST = [
+    [4],
+    [3, 5],
+    [2, 4, 6],
+    [1, 3, 5, 7],
+    [2, 4, 6],
+    [1, 3, 5, 7],
+    [2, 4, 6],
+    [1, 3, 5, 7],
+    [2, 4, 6],
+    [1, 3, 5, 7],
+    [2, 4, 6],
+    [3, 5],
+    [4]
+]
 
 class Board(mongoengine.EmbeddedDocument):
 

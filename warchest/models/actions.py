@@ -23,8 +23,50 @@ def get_possible(game, coin):
 
 
 def _get_activation_actions(game, coin):
-    return {}
+    return {
+        'move': get_moves(game, coin),
+        'attack': False,
+        'tactic': False,
+        'capture': False
+    }
 
+def _get_moves(game, coin):
+    coins = game.board.get_coins_spaces(coin)
+    if len(coins == 0):
+        return False
+
+    movement = {}
+
+    for c in coins:
+        y = LETTER_LIST[space[0]]  # Letter
+        x = int(space[1])  # Number
+
+        # Each coin has up to 6 possible movement spaces
+        possible_spaces = [
+            (x - 1, y - 1),
+            (x - 1, y + 1),
+            (X + 1, y - 1),
+            (x + 1, y + 1),
+            (x, y - 2),
+            (x, y + 2)
+        ]
+
+        options = []
+        # for each possible space, check to see if its on the board and empty
+        for x, y in possible_spaces:
+            letter = list_get(LETTER_LIST, y)
+
+            if letter and x in POSITIONS_LIST[y]:
+                valid_pos = "{}{}".format(letter, x)
+                if valid_pos not in game.board.coins_on.keys():
+                    options.append(valid_pos)
+        if len(options) > 0:
+            movement[c] = options
+
+    if len(movement.keys() > 0):
+        return movement
+
+    return False
 
 def _get_deployment_actions(game, coin):
     bolster = False

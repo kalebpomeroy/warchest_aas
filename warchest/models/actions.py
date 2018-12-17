@@ -85,6 +85,10 @@ def _get_attacks(game, coin):
                 continue
 
             if coin[1]['owner'] != game.active_player:
+
+                if coin[0] == units.KNIGHT and game.board.coins_on[name]['coins'] == 1:
+                    continue
+
                 enemies.append(adj)
 
         if len(enemies) > 0:
@@ -114,7 +118,14 @@ def _get_deployment_actions(game, coin):
         for cp in game.board[game.active_player]:
             if not game.board.what_is_on(cp):
                 deploy.append(cp)
-        # UNIT: SCOUT
+
+        if coin == units.SCOUT:
+            for c, unit in game.board.coins_on.items():
+                if unit['owner'] == game.active_player:
+                    for adj in game.board.get_adjacent(unit['space']):
+                        if adj not in deploy and not game.board.what_is_on(cp):
+                            deploy.append(adj)
+
         if len(deploy) == 0:
             deploy = False
 
@@ -198,7 +209,7 @@ def execute(game, coin, action, data=None):
         if not possibles[ATTACK] or piece not in possibles[ATTACK] or target not in possibles[ATTACK][piece]:
             raise APIError("Can't attack like that", 400)
 
-        game.board.attack(target)
+        game.board.attack(piece, target)
         zones['hand'].move(zones['faceup'], coin=coin)
 
     if action == CONTROL:

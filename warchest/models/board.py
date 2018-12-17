@@ -66,8 +66,12 @@ class Board(mongoengine.EmbeddedDocument):
     def move(self, coin, to):
         self.coins_on[coin]['space'] = to
 
-    def attack(self, target):
+    def attack(self, piece, target):
         coin, unit = self.what_is_on(target)
+        if coin == units.PIKEMAN:
+            self.attack(None, self.coins_on[piece]['space'])
+            print("Pikeman takes out the ", piece)
+
         if unit['coins'] == 1:
             return self.coins_on.pop(coin)
 

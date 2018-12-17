@@ -143,6 +143,7 @@ class Game(TimeTaggedDocument, mongoengine.Document):
             "id": str(self.id),
             "initiative": self.initiative,
             "active_player": self.active_player,
+            "requesting_player": get_client_id(),
             "wolves": self.wolves,  # TODO: UUID is secret
             "ravens": self.ravens   # TODO: UUID is secret
         }

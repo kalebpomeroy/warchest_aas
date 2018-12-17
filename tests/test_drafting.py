@@ -1,5 +1,6 @@
 from random import sample, choice, randint
 import json
+from pprint import pprint
 from warchest import app
 from warchest.routes import games, clients, draft, actions  # NOQA
 
@@ -70,14 +71,14 @@ def take_a_turn(game, c):
     # This is where the game play actually starts
     rv = client.get('/games/{}'.format(game['id']), headers={'X-Client-ID': c[game['active_player']]})
     game = json.loads(rv.data)
-
     if len(game['zones'][game['active_player']]['hand']['coins']) > 0:
         use_coin = choice(game['zones'][game['active_player']]['hand']['coins'])
         url = '/games/{}/action/{}'.format(game['id'], use_coin)
         rv = client.get(url, headers={'X-Client-ID': c[game['active_player']]})
         options = json.loads(rv.data)
-        action, d = get_action(options)
+        coin, action, d = get_action(use_coin, options)
         data = {'action': action, 'data': d}
+        url = '/games/{}/action/{}'.format(game['id'], coin)
         print("{} is using {} to {} ({})".format(game['active_player'], use_coin, action, data['data']))
     else:
         data = {'action': 'pass', 'data': None}
@@ -90,13 +91,16 @@ def take_a_turn(game, c):
     return game
 
 
-def get_action(options):
+def get_action(coin, options):
 
     def is_a_good_action(action, options):
         if not options[action]:
             return False
 
-        if action in ['move', 'control', 'attack', 'deploy', 'recruit']:
+        if action in ['tactic', 'control', 'attack']:
+            return True
+
+        if action in ['move', 'deploy', 'recruit'] and randint(0, 10) < 7:
             return True
 
         if action in ['pass', 'initiative'] and randint(0, 10) < 1:
@@ -107,13 +111,13 @@ def get_action(options):
 
     action = choice(list(options.keys()))
     if not is_a_good_action(action, options):
-        return get_action(options)
+        return get_action(coin, options)
 
     if isinstance(options[action], list):
-        return (action, choice(options[action]))
+        return (coin, action, choice(options[action]))
 
     if isinstance(options[action], dict):
-        key = choice(list(options[action].keys()))
-        return (action, {key: choice(options[action][key])})
+        coin_to_use = choice(list(options[action].keys()))
+        return (coin_to_use, action, choice(options[action][coin_to_use]))
 
-    return (action, None)
+    return (coin, action, None)

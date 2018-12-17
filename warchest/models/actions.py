@@ -10,13 +10,23 @@ BOLSTER = 'bolster'
 MOVE = 'move'
 CONTROL = 'control'
 ATTACK = 'attack'
+TACTIC = 'tactic'
+
+FACEUP_ACTIONS = [MOVE, CONTROL, ATTACK, TACTIC]
+BOARD_ACTIONS = [DEPLOY, BOLSTER]
+FACEDOWN_ACTIONS = [PASS, INITIATIVE, RECRUIT]
+
+NO_OP = 'no-op'
 
 
 def get_possible(game, coin):
     game.is_it_my_turn()
     zones = game.zones[game.active_player]
 
-    if coin == 'no-op' and len(zones['hand'].coins) == 0:
+    if coin == NO_OP:
+        if len(zones['hand'].coins) != 0:
+            raise APIError("You have to do something")
+
         return {
             PASS: True
         }
@@ -32,31 +42,27 @@ def get_possible(game, coin):
 
 
 def _get_activation_actions(game, coin):
-    return {
-        MOVE: _get_moves(game, coin),
-        ATTACK: _get_attacks(game, coin),
-        'tactic': False,
-        CONTROL: _get_control(game, coin)
-    }
 
-def _get_control(game, coin):
     coins = game.board.get_coins_spaces(coin)
     if len(coins) == 0:
-        return False
+        return {}
 
+    return {
+        CONTROL: _get_control(game, coins),
+        MOVE: _get_moves(game, coins),
+        ATTACK: _get_attacks(game, coins),
+        TACTIC: _get_tactic(game, coins),
+    }
+
+def _get_control(game, coins):
     controls = []
     for name, pos in coins.items():
         if pos in CONTROL_POINTS and pos not in game.board[game.active_player]:
             controls.append(name)
-
     return controls or False
 
 
-def _get_moves(game, coin):
-    coins = game.board.get_coins_spaces(coin)
-    if len(coins) == 0:
-        return False
-
+def _get_moves(game, coins):
     movement = {}
 
     for name, pos in coins.items():
@@ -64,16 +70,9 @@ def _get_moves(game, coin):
         if len(options) > 0:
             movement[name] = options
 
-    if len(movement.keys()) > 0:
-        return movement
+    return movement or False
 
-    return False
-
-def _get_attacks(game, coin):
-    coins = game.board.get_coins_spaces(coin)
-    if len(coins) == 0:
-        return False
-
+def _get_attacks(game, coins):
     attacks = {}
 
     for name, pos in coins.items():
@@ -94,10 +93,37 @@ def _get_attacks(game, coin):
         if len(enemies) > 0:
             attacks[name] = enemies
 
-    if len(attacks.keys()) > 0:
-        return attacks
+    return attacks or False
+
+def _get_tactic(game, coins):
+
+    name, pos = coins.popitem()
+
+    if name == units.LIGHT_CAVALRY:
+
+        first_moves = [adj for adj in game.board.get_adjacent(pos) if not game.board.what_is_on(adj)]
+        moves = []
+        for move in first_moves:
+            moves = moves + [adj for adj in game.board.get_adjacent(move) if not game.board.what_is_on(adj)]
+
+        return list(set(moves))
+
+    if name == units.ARCHER:
+        targets = []
+        one_space_away = game.board.get_adjacent(pos)
+        for adj in one_space_away:
+            for target_space in game.board.get_adjacent(adj):
+                if target_space in one_space_away:
+                    continue
+
+                target_unit = game.board.what_is_on(target_space)
+                if target_unit and target_unit[1]['owner'] != game.active_player:
+                    targets.append(target_space)
+
+        return list(set(targets)) or False
 
     return False
+
 
 def _get_deployment_actions(game, coin):
     bolster = False
@@ -140,7 +166,7 @@ def _get_facedown_actions(game, zones):
     recruit = False
 
     if len(zones['recruit'].coins) > 0:
-        recruit = list(set(zones['recruit'].coins))  # TODO: What can I recruit
+        recruit = list(set(zones['recruit'].coins))
 
     if game.initiative != game.active_player and not game.initiative_taken_this_round:
         initiative = True
@@ -151,75 +177,78 @@ def _get_facedown_actions(game, zones):
         RECRUIT: recruit,
     }
 
+def check_action(game, coin, action, data):
 
-def execute(game, coin, action, data=None):
-    game.is_it_my_turn()
     possibles = get_possible(game, coin)
-    zones = game.zones[game.active_player]
+
     if action not in possibles:
         raise APIError("Not a valid action", 400)
 
+    if not possibles[action]:
+        raise APIError("Action not possible", 400)
+
+    if isinstance(possibles[action], list) and data not in possibles[action]:
+        raise APIError("Option not in list of choices", 400)
+
+    if isinstance(possibles[action], dict) and coin not in possibles[action] and data not in possibles[action][coin]:
+        raise APIError("Option not in dict of choices", 400)
+
+
+def execute(game, coin, action, data=None):
+    # Is the action allowed right now?
+    game.is_it_my_turn()
+    check_action(game, coin, action, data)
+
+    # Discard/Deploy the chip appropriately
+    zones = game.zones[game.active_player]
+    if action in FACEDOWN_ACTIONS and coin != NO_OP:
+        zones['hand'].move(zones['facedown'], coin=coin)
+    elif action in BOARD_ACTIONS:
+        zones['hand'].remove(coin=coin)
+    elif action in FACEUP_ACTIONS:
+        zones['hand'].move(zones['faceup'], coin=coin)
+
+    # Do whatever the action is
+    result = do_action(game, coin, action, data)
+
+    # Make sure the zones are set appropriately
+    game.set_zones(zones)
+
+    # If result puts the game into a weird state, handle that here
+    game.your_turn()
+
+    game.save()
+
+
+def do_action(game, coin, action, data):
     if action == PASS:
-        if len(zones['hand'].coins) > 0:
-            zones['hand'].move(zones['facedown'], coin=coin)
+        return
 
     if action == INITIATIVE:
-        if not possibles[INITIATIVE]:
-            raise APIError("You already have initiative. Why don't you just pass?", 400)
-
-        if game.initiative_taken_this_round:
-            raise APIError("Your opponent just took initiative. Give him a moment in the sun", 400)
-
-        game.take_initiative()
-        zones['hand'].move(zones['facedown'], coin=coin)
+        return game.take_initiative()
 
     if action == RECRUIT:
-        if not possibles[RECRUIT] or data not in possibles[RECRUIT]:
-            raise APIError("Can't recruit that", 400)
-
-        zones['hand'].move(zones['facedown'], coin=coin)
-        zones['recruit'].move(zones['faceup'], coin=data)
+        zones = game.zones[game.active_player]
+        return zones['recruit'].move(zones['faceup'], coin=data)
 
     if action == DEPLOY:
-        if not possibles[DEPLOY] or data not in possibles[DEPLOY]:
-            raise APIError("Can't deploy there", 400)
-
-        game.board.deploy(coin, data)
-        zones['hand'].remove(coin=coin)
+        return game.board.deploy(coin, data)
 
     if action == BOLSTER:
-        if not possibles[BOLSTER] or data not in possibles[BOLSTER]:
-            raise APIError("Can't bolster there", 400)
-
-        game.board.bolster(coin, data)
-        zones['hand'].remove(coin=coin)
+        return game.board.bolster(coin, data)
 
     if action == MOVE:
-        piece = list(data.keys())[0]
-        to = data[piece]
-        if not possibles[MOVE] or piece not in possibles[MOVE] or to not in possibles[MOVE][piece]:
-            raise APIError("Can't move like that", 400)
-
-        game.board.move(piece, to)
-        zones['hand'].move(zones['faceup'], coin=coin)
+        return game.board.move(coin, data)
 
     if action == ATTACK:
-        piece = list(data.keys())[0]
-        target = data[piece]
-        if not possibles[ATTACK] or piece not in possibles[ATTACK] or target not in possibles[ATTACK][piece]:
-            raise APIError("Can't attack like that", 400)
-
-        game.board.attack(piece, target)
-        zones['hand'].move(zones['faceup'], coin=coin)
+        return game.board.attack(coin, data)
 
     if action == CONTROL:
+        return game.board.control(data)
 
-        if not possibles[CONTROL] or data not in possibles[CONTROL]:
-            raise APIError("Don't be so controlling", 400)
+    if action == TACTIC:
+        if coin == units.LIGHT_CAVALRY:
+            return game.board.move(coin, data)
 
-        game.board.control(data)
-        zones['hand'].move(zones['faceup'], coin=coin)
-
-    game.set_zones(zones)
-    game.your_turn()
-    game.save()
+        if coin == units.ARCHER:
+            return game.board.attack(coin, data, ranged=True)

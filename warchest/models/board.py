@@ -61,16 +61,14 @@ class Board(mongoengine.EmbeddedDocument):
             'wolves': self.wolves
         }
 
-    # TODO: Get surrounding spaces
-
     def move(self, coin, to):
         self.coins_on[coin]['space'] = to
 
-    def attack(self, piece, target):
+    def attack(self, attacker, target, ranged=False):
         coin, unit = self.what_is_on(target)
-        if coin == units.PIKEMAN:
-            self.attack(None, self.coins_on[piece]['space'])
-            print("Pikeman takes out the ", piece)
+        if coin == units.PIKEMAN and not ranged:
+            self.attack(None, self.coins_on[attacker]['space'])
+            print("Pikeman takes out the ", attacker)
 
         if unit['coins'] == 1:
             return self.coins_on.pop(coin)

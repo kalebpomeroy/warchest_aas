@@ -1,6 +1,7 @@
 from warchest.errors import APIError
 from warchest.models import units
-from warchest.models.board import LETTER_LIST, POSITIONS_LIST, CONTROL_POINTS
+from warchest.hexes import Hex
+from warchest.models.board import CONTROL_POINTS
 
 PASS = 'pass'
 INITIATIVE = 'initiative'
@@ -54,6 +55,7 @@ def _get_activation_actions(game, coin):
         TACTIC: _get_tactic(game, coins),
     }
 
+
 def _get_control(game, coins):
     controls = []
     for name, pos in coins.items():
@@ -66,11 +68,12 @@ def _get_moves(game, coins):
     movement = {}
 
     for name, pos in coins.items():
-        options = [adj for adj in game.board.get_adjacent(pos) if not game.board.what_is_on(adj)]
+        options = [hex for hex in game.board.get_adjacent(pos) if not game.board.what_is_on(hex)]
         if len(options) > 0:
             movement[name] = options
 
     return movement or False
+
 
 def _get_attacks(game, coins):
     attacks = {}
@@ -78,8 +81,8 @@ def _get_attacks(game, coins):
     for name, pos in coins.items():
         enemies = []
         # for each adjacent space, check to see if it has an enemy
-        for adj in game.board.get_adjacent(pos):
-            coin = game.board.what_is_on(adj)
+        for hex in game.board.get_adjacent(pos):
+            coin = game.board.what_is_on(hex)
             if not coin:
                 continue
 
@@ -88,12 +91,13 @@ def _get_attacks(game, coins):
                 if coin[0] == units.KNIGHT and game.board.coins_on[name]['coins'] == 1:
                     continue
 
-                enemies.append(adj)
+                enemies.append(hex)
 
         if len(enemies) > 0:
             attacks[name] = enemies
 
     return attacks or False
+
 
 def _get_tactic(game, coins):
 
@@ -101,24 +105,20 @@ def _get_tactic(game, coins):
 
     if name == units.LIGHT_CAVALRY:
 
-        first_moves = [adj for adj in game.board.get_adjacent(pos) if not game.board.what_is_on(adj)]
+        first_moves = [hex for hex in game.board.get_adjacent(pos) if not game.board.what_is_on(hex)]
         moves = []
         for move in first_moves:
-            moves = moves + [adj for adj in game.board.get_adjacent(move) if not game.board.what_is_on(adj)]
+            moves = moves + [_hex for _hex in game.board.get_adjacent(move) if not game.board.what_is_on(_hex)]
 
         return list(set(moves))
 
     if name == units.ARCHER:
         targets = []
-        one_space_away = game.board.get_adjacent(pos)
-        for adj in one_space_away:
-            for target_space in game.board.get_adjacent(adj):
-                if target_space in one_space_away:
-                    continue
+        for target_space in Hex(pos).hexes_within_n(2, at_least=2):
 
-                target_unit = game.board.what_is_on(target_space)
-                if target_unit and target_unit[1]['owner'] != game.active_player:
-                    targets.append(target_space)
+            target_unit = game.board.what_is_on(target_space)
+            if target_unit and target_unit[1]['owner'] != game.active_player:
+                targets.append(target_space)
 
         return list(set(targets)) or False
 
@@ -149,7 +149,7 @@ def _get_deployment_actions(game, coin):
             for c, unit in game.board.coins_on.items():
                 if unit['owner'] == game.active_player:
                     for adj in game.board.get_adjacent(unit['space']):
-                        if adj not in deploy and not game.board.what_is_on(cp):
+                        if adj not in deploy and not game.board.what_is_on(adj):
                             deploy.append(adj)
 
         if len(deploy) == 0:
@@ -176,6 +176,7 @@ def _get_facedown_actions(game, zones):
         INITIATIVE: initiative,
         RECRUIT: recruit,
     }
+
 
 def check_action(game, coin, action, data):
 
@@ -209,7 +210,7 @@ def execute(game, coin, action, data=None):
         zones['hand'].move(zones['faceup'], coin=coin)
 
     # Do whatever the action is
-    result = do_action(game, coin, action, data)
+    do_action(game, coin, action, data)
 
     # Make sure the zones are set appropriately
     game.set_zones(zones)

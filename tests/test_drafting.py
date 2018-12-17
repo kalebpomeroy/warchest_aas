@@ -1,6 +1,5 @@
 from random import sample, choice, randint
 import json
-from pprint import pprint
 from warchest import app
 from warchest.routes import games, clients, draft, actions  # NOQA
 

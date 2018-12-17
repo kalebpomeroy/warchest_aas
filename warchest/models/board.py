@@ -1,48 +1,21 @@
-# 1 2 3 4 5 6 7
-#       A
-#     B   B
-#   C   C   C
-# D   D   D   D
-#   E   E   E
-# F   F   F   F
-#   G   G   G
-# H   H   H   H
-#   I   I   I
-# J   J   J   J
-#   K   K   K
-#     L   L
-#       M
+
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 import mongoengine
 from warchest.models import units
-from warchest.utils import list_get
+from warchest.hexes import Hex
 from mongoengine.fields import (
     DictField,
     ListField
 )
-LETTER_LIST = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M']
-POSITIONS_LIST = [
-    [4],
-    [3, 5],
-    [2, 4, 6],
-    [1, 3, 5, 7],
-    [2, 4, 6],
-    [1, 3, 5, 7],
-    [2, 4, 6],
-    [1, 3, 5, 7],
-    [2, 4, 6],
-    [1, 3, 5, 7],
-    [2, 4, 6],
-    [3, 5],
-    [4]
-]
+
 CONTROL_POINTS = [
-    'H1', 'H3', 'E2',  # Left Control Points
-    'F7', 'F5', 'I9',  # Right Control Points
-    'B3', 'C6',        # Ravens starting
-    'K2', 'L5'         # Wolves starting
+    (-2, 0, 2), (-1, 1, 0), (-3, 2, 1),   # Left Control Points
+    (2, 0, -2), (1, -1, 0), (3, -2, -1),  # Right Control Points
+    (-1, -2, 3), (2, -3, 1),                 # Ravens starting
+    (-2, 3, -1), (1, 2, -3)                  # Wolves starting
 ]
+
 
 class Board(mongoengine.EmbeddedDocument):
 
@@ -52,7 +25,7 @@ class Board(mongoengine.EmbeddedDocument):
 
     @classmethod
     def new(cls):
-        return cls(wolves=['K2', 'L5'], ravens=['B3', 'C6'])
+        return cls(wolves=[(-2, 3, -1), (1, 2, -3)], ravens=[(-1, -2, 3), (2, -3, 1)])
 
     def to_dict(self):
         return {
@@ -86,28 +59,8 @@ class Board(mongoengine.EmbeddedDocument):
             'coins': 1
         }
 
-    def get_adjacent(self, pos):
-        y = LETTER_LIST.index(pos[0])  # Letter
-        x = int(pos[1])  # Number
-
-        # Each coin has up to 6 adjacent spaces
-        possible_spaces = [
-            (x - 1, y - 1),
-            (x - 1, y + 1),
-            (x + 1, y - 1),
-            (x + 1, y + 1),
-            (x, y - 2),
-            (x, y + 2)
-        ]
-
-        options = []
-        # for each possible space, check to see if its on the board and empty
-        for x, y in possible_spaces:
-            letter = list_get(LETTER_LIST, y)
-
-            if letter and x in POSITIONS_LIST[y]:
-                options.append("{}{}".format(letter, x))
-        return options
+    def get_adjacent(self, coordinates):
+        return Hex(coordinates).hexes_within_n(1)
 
     def what_is_on(self, space):
         for coin, unit in self.coins_on.items():

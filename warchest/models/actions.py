@@ -1,6 +1,5 @@
 from warchest.errors import APIError
 from warchest.models import units
-from warchest.utils import list_get
 from warchest.models.board import LETTER_LIST, POSITIONS_LIST, CONTROL_POINTS
 
 PASS = 'pass'
@@ -10,13 +9,14 @@ DEPLOY = 'deploy'
 BOLSTER = 'bolster'
 MOVE = 'move'
 CONTROL = 'control'
+ATTACK = 'attack'
 
 
 def get_possible(game, coin):
     game.is_it_my_turn()
     zones = game.zones[game.active_player]
 
-    if coin == 'no-op' and len(zones['hand'].coins) == 0: 
+    if coin == 'no-op' and len(zones['hand'].coins) == 0:
         return {
             PASS: True
         }
@@ -34,7 +34,7 @@ def get_possible(game, coin):
 def _get_activation_actions(game, coin):
     return {
         MOVE: _get_moves(game, coin),
-        'attack': False,
+        ATTACK: _get_attacks(game, coin),
         'tactic': False,
         CONTROL: _get_control(game, coin)
     }
@@ -46,7 +46,7 @@ def _get_control(game, coin):
 
     controls = []
     for name, pos in coins.items():
-        if pos in CONTROL_POINTS:
+        if pos in CONTROL_POINTS and pos not in game.board[game.active_player]:
             controls.append(name)
 
     return controls or False
@@ -60,33 +60,38 @@ def _get_moves(game, coin):
     movement = {}
 
     for name, pos in coins.items():
-        y = LETTER_LIST.index(pos[0])  # Letter
-        x = int(pos[1])  # Number
-
-        # Each coin has up to 6 possible movement spaces
-        possible_spaces = [
-            (x - 1, y - 1),
-            (x - 1, y + 1),
-            (x + 1, y - 1),
-            (x + 1, y + 1),
-            (x, y - 2),
-            (x, y + 2)
-        ]
-
-        options = []
-        # for each possible space, check to see if its on the board and empty
-        for x, y in possible_spaces:
-            letter = list_get(LETTER_LIST, y)
-
-            if letter and x in POSITIONS_LIST[y]:
-                valid_pos = "{}{}".format(letter, x)
-                if valid_pos not in game.board.coins_on.keys():
-                    options.append(valid_pos)
+        options = [adj for adj in game.board.get_adjacent(pos) if not game.board.what_is_on(adj)]
         if len(options) > 0:
             movement[name] = options
 
     if len(movement.keys()) > 0:
         return movement
+
+    return False
+
+def _get_attacks(game, coin):
+    coins = game.board.get_coins_spaces(coin)
+    if len(coins) == 0:
+        return False
+
+    attacks = {}
+
+    for name, pos in coins.items():
+        enemies = []
+        # for each adjacent space, check to see if it has an enemy
+        for adj in game.board.get_adjacent(pos):
+            coin = game.board.what_is_on(adj)
+            if not coin:
+                continue
+
+            if coin[1]['owner'] != game.active_player:
+                enemies.append(adj)
+
+        if len(enemies) > 0:
+            attacks[name] = enemies
+
+    if len(attacks.keys()) > 0:
+        return attacks
 
     return False
 
@@ -105,7 +110,10 @@ def _get_deployment_actions(game, coin):
         bolster = list(spaces.values())
 
     if len(spaces) == 0 or (len(spaces) == 1 and coin == units.FOOTMAN):
-        deploy = [cp for cp in game.board[game.active_player] if cp not in list(game.board.coins_on.keys())]
+        deploy = []
+        for cp in game.board[game.active_player]:
+            if not game.board.what_is_on(cp):
+                deploy.append(cp)
         # UNIT: SCOUT
         if len(deploy) == 0:
             deploy = False
@@ -182,7 +190,16 @@ def execute(game, coin, action, data=None):
             raise APIError("Can't move like that", 400)
 
         game.board.move(piece, to)
-        zones['hand'].remove(coin=coin)
+        zones['hand'].move(zones['faceup'], coin=coin)
+
+    if action == ATTACK:
+        piece = list(data.keys())[0]
+        target = data[piece]
+        if not possibles[ATTACK] or piece not in possibles[ATTACK] or target not in possibles[ATTACK][piece]:
+            raise APIError("Can't attack like that", 400)
+
+        game.board.attack(target)
+        zones['hand'].move(zones['faceup'], coin=coin)
 
     if action == CONTROL:
 
@@ -190,7 +207,7 @@ def execute(game, coin, action, data=None):
             raise APIError("Don't be so controlling", 400)
 
         game.board.control(data)
-        zones['hand'].remove(coin=coin)
+        zones['hand'].move(zones['faceup'], coin=coin)
 
     game.set_zones(zones)
     game.your_turn()

@@ -16,6 +16,7 @@
 from __future__ import unicode_literals
 import mongoengine
 from warchest.models import units
+from warchest.utils import list_get
 from mongoengine.fields import (
     DictField,
     ListField
@@ -63,18 +64,55 @@ class Board(mongoengine.EmbeddedDocument):
     # TODO: Get surrounding spaces
 
     def move(self, coin, to):
-        unit = self.coins_on[coin]
-        self.coins_on[to] = unit
-        self.coins_on.pop(coin, None)
+        self.coins_on[coin]['space'] = to
+
+    def attack(self, target):
+        coin, unit = self.what_is_on(target)
+        if unit['coins'] == 1:
+            return self.coins_on.pop(coin)
+
+        unit['coins'] = unit['coins'] - 1
+        self.coins_on[coin] = unit
 
     def deploy(self, coin, space):
         if coin == units.FOOTMAN and coin in self.coins_on:
             coin = units.FOOTMAN_B
 
         self.coins_on[coin] = {
+            'owner': self._instance.active_player,
             'space': space,
             'coins': 1
         }
+
+    def get_adjacent(self, pos):
+        y = LETTER_LIST.index(pos[0])  # Letter
+        x = int(pos[1])  # Number
+
+        # Each coin has up to 6 adjacent spaces
+        possible_spaces = [
+            (x - 1, y - 1),
+            (x - 1, y + 1),
+            (x + 1, y - 1),
+            (x + 1, y + 1),
+            (x, y - 2),
+            (x, y + 2)
+        ]
+
+        options = []
+        # for each possible space, check to see if its on the board and empty
+        for x, y in possible_spaces:
+            letter = list_get(LETTER_LIST, y)
+
+            if letter and x in POSITIONS_LIST[y]:
+                options.append("{}{}".format(letter, x))
+        return options
+
+    def what_is_on(self, space):
+        for coin, unit in self.coins_on.items():
+            if unit['space'] == space:
+                return (coin, unit)
+
+        return False
 
     def control(self, coin):
         if self._instance.active_player == 'wolves':

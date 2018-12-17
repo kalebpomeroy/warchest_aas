@@ -1,4 +1,4 @@
-from random import sample, choice
+from random import sample, choice, randint
 import json
 from warchest import app
 from warchest.routes import games, clients, draft, actions  # NOQA
@@ -50,7 +50,7 @@ def test_happy_path():
     # A player can only see one of their coins
     assert ("coins" not in game['zones']['wolves']['hand']) | ("coins" not in game['zones']['ravens']['hand'])
 
-    for i in range(1000):
+    for i in range(300):
         game = take_a_turn(game, c)
 
         if game['status'] == 'complete':
@@ -91,8 +91,22 @@ def take_a_turn(game, c):
 
 
 def get_action(options):
+
+    def is_a_good_action(action, options):
+        if not options[action]:
+            return False
+
+        if action in ['move', 'control', 'attack', 'deploy', 'recruit']:
+            return True
+
+        if action in ['pass', 'initiative'] and randint(0, 10) < 1:
+            return True
+
+        # Never bolster cause computers are dumb
+        return False
+
     action = choice(list(options.keys()))
-    if not options[action]:
+    if not is_a_good_action(action, options):
         return get_action(options)
 
     if isinstance(options[action], list):

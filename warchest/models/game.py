@@ -38,6 +38,7 @@ class Game(TimeTaggedDocument, mongoengine.Document):
     initiative_taken_this_round = BooleanField(default=False)
     initiative = StringField()
     zones = DictField()
+    should_wait = DictField()
     cards = EmbeddedDocumentField(Cards, null=True, required=False)
     board = EmbeddedDocumentField(Board, null=True, required=False)
 
@@ -131,7 +132,7 @@ class Game(TimeTaggedDocument, mongoengine.Document):
             self.zones[player]['faceup'].move_all(self.zones[player]['bag'])
             self.zones[player]['facedown'].move_all(self.zones[player]['bag'])
 
-        self.zones[player]['bag'].move(self.zones[player]['hand'])
+        return self.zones[player]['bag'].move(self.zones[player]['hand'])
 
     def win(self):
         self.status = COMPLETE
@@ -153,6 +154,8 @@ class Game(TimeTaggedDocument, mongoengine.Document):
             response['board'] = self.board.to_dict()
         if self.status == COMPLETE:
             response['winner'] = self.winner
+        if self.should_wait:
+            response['should_wait'] = self.should_wait
 
         if self.zones:
             response['zones'] = {

@@ -41,7 +41,9 @@ class Board(mongoengine.EmbeddedDocument):
         coin, unit = self.what_is_on(target)
         if coin == units.PIKEMAN and not ranged:
             self.attack(None, self.coins_on[attacker]['space'])
-            print("Pikeman takes out the ", attacker)
+        if coin == units.ROYAL_GUARD:
+            if self._instance.zones[unit['owner']]['recruit'].coins.count(units.ROYAL_GUARD) > 0:
+                return self._instance.should_wait == units.ROYAL_GUARD
 
         if unit['coins'] == 1:
             return self.coins_on.pop(coin)

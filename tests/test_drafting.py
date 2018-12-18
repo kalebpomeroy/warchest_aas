@@ -53,40 +53,52 @@ def test_happy_path():
     for i in range(300):
         game = take_a_turn(game, c)
 
+        if 'message' in game:
+            print("v"*80)
+            print (game['message'])
+            print("^"*80)
+
         if game['status'] == 'complete':
             print("!"*80)
             print("! WINNER on turn {}".format(i))
             print("!"*80)
             break
+    print("FINISHED")
 
     assert False
 
 
 def take_a_turn(game, c):
-    if 'message' in game:
-        print("v"*80)
-        print (game['message'])
-        print("^"*80)
     # This is where the game play actually starts
     rv = client.get('/games/{}'.format(game['id']), headers={'X-Client-ID': c[game['active_player']]})
     game = json.loads(rv.data)
-    if len(game['zones'][game['active_player']]['hand']['coins']) > 0:
-        use_coin = choice(game['zones'][game['active_player']]['hand']['coins'])
+
+    p = game['active_player']
+
+    hand = game['zones'][game['active_player']]['hand']
+    only_choice = game.get('should_wait', {}).get('unit', False)
+    if len(hand['coins']) > 0 or only_choice:
+        use_coin = only_choice or choice(hand['coins'])
+
+        print("{} is getting options for {} (only_choice: {}, hand: {})".format(p, use_coin, only_choice, hand['coins']))
         url = '/games/{}/action/{}'.format(game['id'], use_coin)
         rv = client.get(url, headers={'X-Client-ID': c[game['active_player']]})
         options = json.loads(rv.data)
-        coin, action, d = get_action(use_coin, options)
+        print("These are the options: ", options)
+
+        coin, action, d = get_action(options['coin'], options['options'])
         data = {'action': action, 'data': d}
         url = '/games/{}/action/{}'.format(game['id'], coin)
-        print("{} is using {} to {} ({})".format(game['active_player'], use_coin, action, data['data']))
+        print("{} decided on using {} to {} ({}).".format(p, use_coin, action, data['data']))
     else:
         data = {'action': 'pass', 'data': None}
         url = '/games/{}/action/no-op'.format(game['id'])
-        print("{} is forced to pass".format(game['active_player']))
+        print("{} is forced to pass. coins: {} should_wait: {}".format(p, ))
     rv = client.post(url,
                      data=json.dumps(data),
                      headers={'X-Client-ID': c[game['active_player']], 'Content-Type': 'application/json'})
     game = json.loads(rv.data)
+    print("\n\n")
     return game
 
 
@@ -116,6 +128,10 @@ def get_action(coin, options):
         return (coin, action, choice(options[action]))
 
     if isinstance(options[action], dict):
+        if action == 'tactic' and coin in ['ensign', 'marshall', 'heavycavalry', 'lancer', 'royaltoken']:
+            coin_to_use = choice(list(options[action].keys()))
+            return (coin, action, {coin_to_use: choice(options[action][coin_to_use])})
+
         coin_to_use = choice(list(options[action].keys()))
         return (coin_to_use, action, choice(options[action][coin_to_use]))
 

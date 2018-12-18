@@ -23,7 +23,7 @@ class Hex(tuple):
         return hash(str(self))
 
     def __str__(self):
-        return "<Hex ({}, {}, {})>".format(self.q, self.r, self.s)
+        return "{}, {}, {}".format(self.q, self.r, self.s)
 
     def add(self, b):
         if abs(self.q + b.q) > MAX or abs(self.r + b.r) > MAX or abs(self.s + b.s) > MAX:
@@ -34,10 +34,10 @@ class Hex(tuple):
         return Hex((self.q - b.q, self.r - b.r, self.s - b.s))
 
     def neighbor(self, direction):
-        return self.add(hex_directions[direction])
+        return self.add(HEX_DIRECTIONS[direction])
 
     def diagonal_neighbor(self, direction):
-        return self.add(hex_diagonals[direction])
+        return self.add(HEX_DIAGONALS[direction])
 
     def length(self, b):
         return (abs(b.q) + abs(b.r) + abs(b.s)) // 2
@@ -59,7 +59,7 @@ class Hex(tuple):
         return [r for r in results if r]
 
 
-hex_directions = {
+HEX_DIRECTIONS = {
     "n": Hex((0, -1, 1)),
     "ne": Hex((1, -1, 0)),
     "se": Hex((1, 0, -1)),
@@ -68,7 +68,7 @@ hex_directions = {
     "nw": Hex((-1, 0, 1)),
 }
 
-hex_diagonals = {
+HEX_DIAGONALS = {
     "ne": Hex((1, -2, 1)),
     "e": Hex((2, -1, -1)),
     "se": Hex((1, 1, -2)),

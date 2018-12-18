@@ -7,6 +7,7 @@ from mongoengine.fields import (
     StringField
 )
 from warchest import get_client_id
+from warchest.models import units
 
 
 PRIVATE = "private"  # Only the owner can the contents
@@ -37,12 +38,13 @@ class Zone(mongoengine.EmbeddedDocument):
 
         new_zone.add(coin)
         self.remove(coin)
+        return coin
 
     def add(self, coin):
-        self.coins.append(coin)
+        self.coins.append(get_coin_name(coin))
 
     def remove(self, coin):
-        self.coins.remove(coin)
+        self.coins.remove(get_coin_name(coin))
 
     def to_dict(self):
         zone = {
@@ -53,3 +55,9 @@ class Zone(mongoengine.EmbeddedDocument):
             zone['coins'] = self.coins
 
         return zone
+
+
+def get_coin_name(coin):
+    if coin == units.FOOTMAN_B:
+        return units.FOOTMAN
+    return coin

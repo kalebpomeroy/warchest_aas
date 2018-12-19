@@ -12,6 +12,7 @@ from mongoengine.queryset.visitor import Q
 from warchest.models.mixins import TimeTaggedDocument
 from warchest.models.board import Board
 from warchest.models.cards import Cards
+from warchest.models import units
 from warchest.models.zones import Zone, PRIVATE, HIDDEN, PUBLIC
 from warchest.errors import APIError
 from warchest import get_client_id
@@ -19,6 +20,7 @@ from warchest import get_client_id
 
 COMPLETE = 'complete'
 NEW = 'new'
+DRAFTING = 'drafting'
 IN_PROGRESS = 'in_progress'
 
 
@@ -44,20 +46,23 @@ class Game(TimeTaggedDocument, mongoengine.Document):
 
     @classmethod
     def make_new(cls):
-        existing_game = cls.find_by_active_by_client()
-        if existing_game:
-            return existing_game
-
-        return Game(
-            wolves=get_client_id(),
-            ravens=None,
-            status=NEW
-        ).save()
+        try:
+            return cls.find_by_active_by_client()
+        except APIError:
+            return Game(
+                wolves=get_client_id(),
+                ravens=None,
+                status=NEW
+            ).save()
 
     @classmethod
     def find_by_active_by_client(cls):
         client_id = get_client_id()
-        return cls.objects(Q(status__ne=COMPLETE) & (Q(wolves=client_id) | Q(ravens=client_id))).first()
+        game = cls.objects(Q(status__ne=COMPLETE) & (Q(wolves=client_id) | Q(ravens=client_id))).first()
+
+        if game:
+            return game
+        raise APIError("Game not found!", 404)
 
     @classmethod
     def load(cls, id):
@@ -75,9 +80,11 @@ class Game(TimeTaggedDocument, mongoengine.Document):
         return cls.objects(status=status)
 
     def join(self):
-        existing_game = self.find_by_active_by_client()
-        if existing_game:
+        try:
+            existing_game = self.find_by_active_by_client()
             raise APIError("Can't join game while you're already in one ({})".format(existing_game.id), 409)
+        except APIError:
+            pass  # Its good they don't have a game already
 
         zones = {
             'wolves': create_player_zones(self.wolves),
@@ -91,7 +98,7 @@ class Game(TimeTaggedDocument, mongoengine.Document):
                        set__cards=Cards.new(),
                        set__board=Board.new(),
                        set__zones=zones,
-                       set__status=IN_PROGRESS):
+                       set__status=DRAFTING):
 
             return True
         raise APIError("This game is already full. Sorry", 409)
@@ -150,12 +157,19 @@ class Game(TimeTaggedDocument, mongoengine.Document):
         }
         if self.cards:
             response['cards'] = self.cards.to_dict()
+            response['cards']['units'] = {}
+            for u, data in units.UNITS.items():
+                if u in self.cards.wolves + self.cards.ravens + self.cards.draft:
+                    response['cards']['units'][u] = data
         if self.board:
             response['board'] = self.board.to_dict()
         if self.status == COMPLETE:
             response['winner'] = self.winner
         if self.should_wait:
             response['should_wait'] = self.should_wait
+
+        if self.active_player:
+            response["active_client"] = getattr(self, self.active_player)
 
         if self.zones:
             response['zones'] = {
@@ -183,5 +197,6 @@ def create_player_zones(client_id):
         'hand': Zone.new(client_id, PRIVATE),
         'facedown': Zone.new(client_id, PRIVATE),
         'faceup': Zone.new(client_id, PUBLIC),
-        'recruit': Zone.new(client_id, PUBLIC)
+        'recruit': Zone.new(client_id, PUBLIC),
+        'dead': Zone.new(client_id, PUBLIC)
     }

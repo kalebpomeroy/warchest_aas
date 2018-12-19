@@ -18,21 +18,20 @@ PIKEMAN = 'pikeman'
 ROYAL_TOKEN = 'royaltoken'
 
 UNITS = {
-    SWORDSMAN: {'count': 5},       # Prompt move/pass
-    MERCENARY: {'count': 5},       # Prompt activate/pass
-    BERSERKER: {'count': 5},       # Prompt activate/pass
-    WARRIOR_PRIEST: {'count': 4},  # Draw, Prompt use (could be pass)
-    FOOTMAN: {'count': 5},         # After tactic, prompt for weird state
-    ROYAL_GUARD: {'count': 5},     # After attacked, prompt non-active
-
+    SWORDSMAN: {'count': 5},
+    MERCENARY: {'count': 5},
+    BERSERKER: {'count': 5},
+    WARRIOR_PRIEST: {'count': 4},
+    FOOTMAN: {'count': 5},
+    ROYAL_GUARD: {'count': 5},
     HEAVY_CAVALRY: {'count': 4},
     CROSSBOWMAN: {'count': 5},
-    # LANCER: {'count': 4},
-    # ARCHER: {'count': 4},
-    # KNIGHT: {'count': 4},
-    # PIKEMAN: {'count': 4},
-    # SCOUT: {'count': 5},
-    # LIGHT_CAVALRY: {'count': 5},
-    # ENSIGN: {'count': 5},
-    # MARSHALL: {'count': 5},
+    LANCER: {'count': 4},
+    ARCHER: {'count': 4},
+    KNIGHT: {'count': 4},
+    PIKEMAN: {'count': 4},
+    SCOUT: {'count': 5},
+    LIGHT_CAVALRY: {'count': 5},
+    ENSIGN: {'count': 5},
+    MARSHALL: {'count': 5},
 }

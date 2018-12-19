@@ -7,6 +7,11 @@ def list_games():
     return {'games': [g.to_dict() for g in Game.find_by_status('new')]}
 
 
+@api.get('/games/mine')
+def my_game():
+    return Game.find_by_active_by_client().to_dict()
+
+
 @api.post('/games')
 def create_games():
     game = Game.make_new()

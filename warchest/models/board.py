@@ -3,6 +3,7 @@
 from __future__ import unicode_literals
 import mongoengine
 from warchest.models import units
+from warchest.errors import APIError
 from warchest.hexes import Hex
 from mongoengine.fields import (
     DictField,
@@ -35,6 +36,8 @@ class Board(mongoengine.EmbeddedDocument):
         }
 
     def move(self, coin, to):
+        if not isinstance(to, list):
+            raise APIError("{} is not a valid location".format(to), 400)
         self.coins_on[coin]['space'] = to
 
     def attack(self, attacker, target, ranged=False):
@@ -46,12 +49,18 @@ class Board(mongoengine.EmbeddedDocument):
                 return self._instance.should_wait == units.ROYAL_GUARD
 
         if unit['coins'] == 1:
-            return self.coins_on.pop(coin)
+            self.coins_on.pop(coin)
+        else:
+            unit['coins'] = unit['coins'] - 1
+            self.coins_on[coin] = unit
 
-        unit['coins'] = unit['coins'] - 1
-        self.coins_on[coin] = unit
+        self._instance.zones[unit['owner']]['dead'].add(coin)
 
     def deploy(self, coin, space):
+
+        if not isinstance(space, list):
+            raise APIError("{} is not a valid location".format(space), 400)
+
         if coin == units.FOOTMAN and coin in self.coins_on:
             coin = units.FOOTMAN_B
 

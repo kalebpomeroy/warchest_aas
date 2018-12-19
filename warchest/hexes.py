@@ -16,7 +16,6 @@ class Hex(tuple):
             return False
         if isinstance(b, list):
             b = Hex(b)
-
         return self.q == b.q and self.r == b.r and self.s == b.s
 
     def __hash__(self):

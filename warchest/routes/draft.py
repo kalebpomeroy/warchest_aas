@@ -7,5 +7,5 @@ from warchest.models import Game
 def draft(id):
     game = Game.load(id)
     data = request.json
-    game.cards.do_draft(data['picks'])
+    game.cards.do_draft(data['pick'])
     return game.to_dict()

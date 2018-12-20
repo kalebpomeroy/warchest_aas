@@ -22,6 +22,7 @@
   - e.g. https://docs.mongodb.com/manual/tutorial/install-mongodb-on-os-x/
   - Default port
 - Install python3, and requirements from requirements.txt
+  - Or use pipenv!
 - Run `python app.py`
 - Make sure it works:
 ```

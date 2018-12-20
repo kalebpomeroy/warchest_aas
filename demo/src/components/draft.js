@@ -44,7 +44,7 @@ class Draft extends Component {
         const classes = classNames('card border py-4 p-2 m-3', {
             'border-red': draftable
         });
-        return <div key={card} className={classes} onClick={draftable && (() => this.props.draft(this.props.game.game.id, card))}>
+        return <div key={card} className={classes} onClick={draftable ? this.props.draft(this.props.game.game.id, card) : undefined}>
             {card}
         </div>;
     }

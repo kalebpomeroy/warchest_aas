@@ -1,7 +1,7 @@
 import React, { Component } from 'react';
 import _ from 'lodash';
-import board from 'img/board.png';
-import Coin from 'components/coin';
+import board from '../img/board.png';
+import Coin from './coin';
 
 export default class Board extends Component {
 

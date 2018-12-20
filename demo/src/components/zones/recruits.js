@@ -1,6 +1,6 @@
 import React, { Component } from 'react';
 import _ from 'lodash';
-import Coin from 'components/coin';
+import Coin from '../coin';
 
 export default class RecruitZone extends Component {
     render() {

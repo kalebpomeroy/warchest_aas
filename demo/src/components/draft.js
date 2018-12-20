@@ -1,9 +1,9 @@
 import React, { Component } from 'react';
 import { connect } from 'react-redux';
-import { draft } from 'actions/game';
+import { draft } from '../actions/game';
 
-import wolves from 'img/wolves.png';
-import ravens from 'img/ravens.png';
+import wolves from '../img/wolves.png';
+import ravens from '../img/ravens.png';
 import classNames from 'classnames';
 
 import _ from 'lodash';

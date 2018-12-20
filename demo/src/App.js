@@ -3,7 +3,7 @@ import { connect } from 'react-redux';
 import Game from './components/game'
 import Login from './components/login'
 import GameList from './components/game_list'
-import { getClientId } from 'actions/game'
+import { getClientId } from './actions/game'
 import { BrowserRouter as Router, Route, Link } from "react-router-dom";
 
 class App extends Component {

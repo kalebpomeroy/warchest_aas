@@ -36,8 +36,8 @@ class Board(mongoengine.EmbeddedDocument):
         }
 
     def move(self, coin, to):
-        if not isinstance(to, list):
-            raise APIError("{} is not a valid location".format(to), 400)
+        if isinstance(to, dict):
+            to = list(to.values())[0]
         self.coins_on[coin]['space'] = to
 
     def attack(self, attacker, target, ranged=False):

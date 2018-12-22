@@ -75,9 +75,14 @@ def _get_activation_actions(game, coin):
 
 def _get_control(game, coins):
     controls = []
+    print("ALL: ", CONTROL_POINTS)
+    print("CAPTURED: ", game.board[game.active_player])
     for name, pos in coins.items():
-        if pos in CONTROL_POINTS and pos not in game.board[game.active_player]:
+        print(name, pos)
+        if tuple(pos) in CONTROL_POINTS and pos not in game.board[game.active_player]:
             controls.append(name)
+
+    print("SHOULD SAY", controls)
     return controls or False
 
 

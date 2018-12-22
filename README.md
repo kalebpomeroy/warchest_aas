@@ -1,17 +1,28 @@
 # TODO:
-- Login (multiple devices)
+- Real Login
 - ELO system with Leaderboard
-- Games with passcode/names
-- Track draft popularity as well as a bunch of other stuff
+- Queue up instead of joining/creating (with an option to challenge friends somehow)
+- Data Analysis: Track draft popularity and a bunch of other stuff
+- Deployable/buildable
+- Demo
+    - Show discard piles and bag counts
+    - Show abilities
+    - Actual hex map/math instead of the hacky nonsense
+        - Animate moving?
+    - Coin images
+    - Show bolstered units
+    - Show initiative
+    - design/styling overhaul
+    - Draft use actual cards
 
-# BUG:
-- Tactics that move units seem to put them in a weird state
-  The royalguard is normal, the mercenary is broken
-            "royalguard" : {
-				"space" : [-1, -2, 3],
-			},
-			"mercenary" : {
-				"space" : {
-					"mercenary" : [3, -3, 0]
-				},
-			},
+
+# To Test
+- Most of the Tactics (esp footmen)
+- Spectator mode
+- Cheat proof?
+
+
+# BUGS:
+- Attacking
+- 'Test' script no longer works, due to some small changes for demo app
+- DEMO: Creating/joining a game should change the state

@@ -30,11 +30,14 @@ export default class Coin extends Component {
         var color = {
             'backgroundColor': COLORS[this.props.name]
         }
+        if(this.props.onClick) {
+            color.cursor = 'pointer'
+        }
         if(this.props.selected) {
             color.border = "4px solid yellow";
         }
         if(this.props.disabled) {
-            color.border = "4px solid green";
+            color.opacity = "0.4";
         }
         return (
             <div style={color}

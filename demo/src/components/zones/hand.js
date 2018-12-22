@@ -16,7 +16,7 @@ export default class HandZone extends Component {
     }
     renderFaceUp(coins){
         if (this.props.bonus){
-            return <div>
+            return <div className="d-flex">
                 <Coin name={this.props.bonus}  onClick={() => this.props.getOption(this.props.bonus)}/>
                 {_.map(coins, (c, i) => <Coin key={i} name={c} disabled={true} /> )   }
             </div>

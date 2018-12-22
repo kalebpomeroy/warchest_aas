@@ -1,11 +1,11 @@
 import React, { Component } from 'react';
 import { connect } from 'react-redux';
-import { getGame, getOption, doOption } from 'actions/game';
-import Draft from 'components/draft';
-import HandZone from 'components/zones/hand';
-import Options from 'components/options';
-import Board from 'components/board';
-import RecruitZone from 'components/zones/recruits';
+import { getGame, getOption, doOption } from '../actions/game';
+import Draft from './draft';
+import HandZone from './zones/hand';
+import Options from './options';
+import Board from './board';
+import RecruitZone from './zones/recruits';
 
 class Game extends Component {
 

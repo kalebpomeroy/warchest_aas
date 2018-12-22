@@ -1,6 +1,6 @@
 import React, { Component } from 'react';
 import { connect } from 'react-redux';
-import { getGames, createGames, joinGame } from 'actions/game'
+import { getGames, createGames, joinGame } from '../actions/game'
 import _ from 'lodash';
 
 class GameList extends Component {

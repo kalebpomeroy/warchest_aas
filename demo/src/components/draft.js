@@ -1,10 +1,7 @@
 import React, { Component } from 'react';
 import { connect } from 'react-redux';
-import { draft } from 'actions/game';
+import { draft } from '../actions/game';
 
-import wolves from 'img/wolves.png';
-import ravens from 'img/ravens.png';
-import classNames from 'classnames';
 import Coin from 'components/coin';
 import _ from 'lodash';
 
@@ -43,7 +40,7 @@ class Draft extends Component {
         return <div className='m-2'>
             <Coin key={card}
                   name={card}
-                  onClick={draftable && (() => this.props.draft(this.props.game.game.id, card))} />
+                  onClick={(draftable) ? (() => this.props.draft(this.props.game.game.id, card)) : undefined} />
         </div>
     }
 }

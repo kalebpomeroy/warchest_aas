@@ -1,6 +1,6 @@
 import React, { Component } from 'react';
 import { connect } from 'react-redux';
-import { setClientId } from 'actions/game'
+import { setClientId } from '../actions/game'
 
 class Login extends Component {
     constructor(props){

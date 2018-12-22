@@ -27,7 +27,7 @@ def test_happy_path():
     # Play two joins the game
     rv = client.post('/games/{}'.format(game['id']), headers={'X-Client-ID': c['ravens']})
     game = json.loads(rv.data)
-    assert game['status'] == 'in_progress'
+    assert game['status'] == 'drafting'
     assert len(game['cards']['draft']) == 8
 
     for i in [1, 2, 2, 2]:

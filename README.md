@@ -26,3 +26,4 @@
 - Attacking
 - 'Test' script no longer works, due to some small changes for demo app
 - DEMO: Creating/joining a game should change the state
+- Moving footmanb moves footman

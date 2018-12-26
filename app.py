@@ -1,3 +1,4 @@
+import os
 from warchest import app
 from flask_cors import CORS
 
@@ -9,4 +10,4 @@ from warchest.routes import games, clients, draft, actions  # NOQA
 if __name__ == '__main__':
 
     CORS(app)
-    app.run(debug=True, port=3030)
+    app.run(host='0.0.0.0', debug=True, port=int(os.environ.get("PORT", 3030)))

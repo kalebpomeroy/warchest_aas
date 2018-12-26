@@ -83,11 +83,14 @@ class Game extends Component {
     }
 
     doOption(action, data, unit) {
-        if(unit) {
+        var coin = this.state.coin;
+        if(unit === 'footmanb') {
+            coin = 'footmanb'
+        } else if(unit) {
             var d = {}
             d[unit] = data
         }
-        this.props.doOption(this.props.game.game.id, this.state.coin, action, d || data)
+        this.props.doOption(this.props.game.game.id, coin, action, d || data)
     }
 }
 

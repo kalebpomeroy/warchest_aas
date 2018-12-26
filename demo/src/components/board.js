@@ -32,7 +32,7 @@ export default class Board extends Component {
         var pos = {
             top: y + "%",
             left: x + "%",
-            zIndex: z,
+            zIndex: z + ((highlighted) ? 3 : 0),
             opacity: (highlighted) ? .6 : 1
         }
 

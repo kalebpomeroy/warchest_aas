@@ -41,6 +41,6 @@ export default class Options extends Component {
                 {option} {unit} ({_.join(c, ", ")})
             </div>
         }
-        return <div className='option' onClick={() => this.props.doOption(option, c)}>{option} {c}</div>
+        return <div className='option' onClick={() => this.props.doOption(option, c, unit)}>{option} {c}</div>
     }
 }

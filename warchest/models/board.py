@@ -41,13 +41,18 @@ class Board(mongoengine.EmbeddedDocument):
         self.coins_on[coin]['space'] = to
 
     def attack(self, attacker, target, ranged=False):
+        if isinstance(target, dict):
+            target = list(target.values())[0]
         coin, unit = self.what_is_on(target)
         if coin == units.PIKEMAN and not ranged:
             self.attack(None, self.coins_on[attacker]['space'])
         if coin == units.ROYAL_GUARD:
             if self._instance.zones[unit['owner']]['recruit'].coins.count(units.ROYAL_GUARD) > 0:
-                return self._instance.should_wait == units.ROYAL_GUARD
+                self._instance.should_wait = {'unit': units.ROYAL_GUARD}
+                return
+        self.kill(coin, unit)
 
+    def kill(self, coin, unit):
         if unit['coins'] == 1:
             self.coins_on.pop(coin)
         else:

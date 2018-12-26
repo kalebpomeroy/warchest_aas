@@ -25,7 +25,10 @@ def get_possible(game, coin):
     game.is_it_my_turn()
     waiting = are_we_waiting(game, coin)
     if waiting:
+        print("Returning WAITING", waiting)
         return waiting
+
+    print("W: ", waiting)
 
     zones = game.zones[game.active_player]
 
@@ -45,7 +48,6 @@ def get_possible(game, coin):
         if not game.should_wait:
             if coin == units.FOOTMAN_B and units.FOOTMAN not in zones['hand']['coins']:
                 raise APIError("Can't do hypothecticals with {} ({})".format(coin, zones['hand']['coins']), 410)
-            print("Counting footman b as footman")
 
         if game.should_wait and game.should_wait['unit'] != coin:
             raise APIError("We're waiting on {}, can't do {}".format(game.should_wait['unit'], coin), 409)
@@ -75,14 +77,10 @@ def _get_activation_actions(game, coin):
 
 def _get_control(game, coins):
     controls = []
-    print("ALL: ", CONTROL_POINTS)
-    print("CAPTURED: ", game.board[game.active_player])
     for name, pos in coins.items():
-        print(name, pos)
         if tuple(pos) in CONTROL_POINTS and pos not in game.board[game.active_player]:
             controls.append(name)
 
-    print("SHOULD SAY", controls)
     return controls or False
 
 
@@ -231,7 +229,7 @@ def _get_tactic(game, coins):
             if target_unit and target_unit[1]['owner'] == game.active_player:
                 attacks = _get_attacks(game, {target_unit[0]: target_unit[1]['space']})
                 if attacks:
-                    targets[target_unit[0]] = attacks
+                    targets[target_unit[0]] = attacks[target_unit[0]]
 
         return targets or False
 
@@ -312,12 +310,10 @@ def check_action(game, coin, action, data):
     possibles = possibles_options['options']
 
     if possible_coin != coin or action not in possibles:
-        print("Trying to {} with {} ({})".format(action, coin, data))
-        print("POSSIBLES: ", possibles)
         raise APIError("Not a valid action", 400)
 
     if not possibles[action]:
-        raise APIError("Action not possible", 400)
+        raise APIError("Action not possible ({})".format(action), 400)
 
     if isinstance(possibles[action], list) and data not in possibles[action]:
         raise APIError("Option not in list of choices", 400)
@@ -355,7 +351,8 @@ def execute(game, coin, action, data=None):
     # Make sure the zones are set appropriately
     game.set_zones(zones)
 
-    if not should_wait(game, coin, action, data):
+    # If passing on a royal guard situation, they shouldn't skip their turn
+    if action != SAVE and not should_wait(game, coin, action, data):
         game.your_turn()
 
     game.save()
@@ -363,6 +360,9 @@ def execute(game, coin, action, data=None):
 
 def do_action(game, coin, action, data):
     if action == PASS:
+
+        if game.should_wait and game.should_wait['unit'] == units.ROYAL_GUARD:
+            game.board.kill(units.ROYAL_GUARD, game.board.coins_on[units.ROYAL_GUARD])
         return True
 
     if action == INITIATIVE:
@@ -415,21 +415,22 @@ def do_action(game, coin, action, data):
             return game.board.attack(coin, data[move_to])
 
     if action == SAVE:
-        if data:
-            return zones['recruit'].remove(units.ROYAL_GUARD)
-        else:
-            game.board.attack(None, game.board.coins_on[units.ROYAL_GUARD]['space'])
+        zones = game.zones[game.active_player]
+        return zones['recruit'].remove(units.ROYAL_GUARD)
 
 
 def should_wait(game, coin, action, data):
+
+    if game.should_wait and game.should_wait['unit'] == units.ROYAL_GUARD and coin != units.ROYAL_GUARD:
+        return False  # We still flip to the next player on this
     if coin == units.SWORDSMAN and action == ATTACK:
         game.should_wait = {'unit': units.SWORDSMAN}
     elif action == RECRUIT and data == units.MERCENARY and game.board.coins_on.get(units.MERCENARY):
         game.should_wait = {'unit': units.MERCENARY}
     elif coin == units.WARRIOR_PRIEST and action in [CONTROL, ATTACK]:
         game.should_wait = {'unit': units.WARRIOR_PRIEST, 'data': game.draw(game.active_player)}
-    # elif coin == units.BERSERKER and action in [CONTROL, ATTACK, MOVE]:
-    #     game.should_wait = {'unit': units.BERSERKER}
+    elif coin == units.BERSERKER and action in [CONTROL, ATTACK, MOVE]:
+        game.should_wait = {'unit': units.BERSERKER}
     elif coin == units.FOOTMAN and action == TACTIC:
         game.should_wait = {'unit': units.FOOTMAN_B}
     else:
@@ -441,10 +442,14 @@ def are_we_waiting(game, coin):
     if not game.should_wait:
         return False
 
+    print("Waiting?", game.should_wait['unit'])
     if game.should_wait['unit'] == units.ROYAL_GUARD:
-        options = {
+        return {
             'coin': coin,
-            SAVE: [True, False]
+            'options': {
+                SAVE: True,
+                PASS: True
+            }
         }
 
     if game.should_wait['unit'] == units.WARRIOR_PRIEST:

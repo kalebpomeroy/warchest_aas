@@ -1,3 +1,16 @@
+Setup:
+```
+mkvirtualenv warchest
+pip install -r requirements.txt
+python app.py
+```
+In a new tab:
+`npm start`
+
+In two different browsers, go to localhost:3000 and click "login" and set a client ID (it's ghetto)
+
+One of the browsers should be able to create the game, and the other join. 
+
 # TODO:
 - Real Login
 - ELO system with Leaderboard
@@ -19,8 +32,6 @@
 # To Test
 - Most of the Tactics (esp footmen)
 - Spectator mode
-- Cheat proof?
-
 
 # BUGS:
 - Attacking
